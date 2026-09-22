@@ -88,6 +88,14 @@ function generarPreguntas(nivelKey){
   const decoyPool = shuffle(NIVELES[nivelKey].decoys);
   return correctas.map((palabra,i)=>({correcta:palabra, decoys:[decoyPool[i*2%decoyPool.length], decoyPool[(i*2+1)%decoyPool.length]]}));
 }
+function generarUnaPregunta(nivelKey){
+  if(usadasSurvival.length >= conTilde.length) usadasSurvival = [];
+  const disponibles = conTilde.filter(w => !usadasSurvival.includes(w));
+  const correcta = disponibles[Math.floor(Math.random()*disponibles.length)];
+  usadasSurvival.push(correcta);
+  const pool = shuffle(NIVELES[nivelKey].decoys);
+  return {correcta, decoys:[pool[0], pool[1]]};
+}
 
 let ac;
 function beep(freq, dur, type){
@@ -114,7 +122,8 @@ function confetti(){
   }
 }
 
-let nivel = null, orden = [], idx = 0, score = 0, streak = 0, answered = false, timerInt = null;
+let nivel = null, modo = null, orden = [], currentQ = null, gameOver = false, usadasSurvival = [];
+let idx = 0, score = 0, streak = 0, answered = false, timerInt = null;
 const card = document.getElementById('card');
 
 function renderNiveles(){
@@ -128,20 +137,39 @@ function renderNiveles(){
     </div>
   `;
   card.querySelectorAll('.lvl').forEach(b=>b.addEventListener('click', ()=>{
-    nivel = b.dataset.n; idx=0; score=0; streak=0;
-    orden = generarPreguntas(nivel); render();
+    nivel = b.dataset.n; render();
+  }));
+}
+
+function renderModos(){
+  card.innerHTML = `
+    <h1>¿Cuál lleva tilde? 📝</h1>
+    <p class="sub">Nivel: ${NIVELES[nivel].label} — elige el modo</p>
+    <div class="lvls">
+      <button class="lvl medio" data-m="normal">Modo Normal (8 preguntas)</button>
+      <button class="lvl dificil" data-m="survival">Sin errores 🔥 (sobrevive)</button>
+    </div>
+  `;
+  card.querySelectorAll('.lvl').forEach(b=>b.addEventListener('click', ()=>{
+    modo = b.dataset.m; idx=0; score=0; streak=0; gameOver=false; usadasSurvival=[];
+    if(modo==='normal'){ orden = generarPreguntas(nivel); }
+    else { currentQ = generarUnaPregunta(nivel); }
+    render();
   }));
 }
 
 function render(){
   if(nivel === null){ renderNiveles(); return; }
-  if(idx >= orden.length){ renderFinal(); return; }
-  const q = orden[idx];
+  if(modo === null){ renderModos(); return; }
+  if(modo === 'normal' && idx >= orden.length){ renderFinal(); return; }
+  if(modo === 'survival' && gameOver){ renderFinalSurvival(); return; }
+  const q = modo === 'normal' ? orden[idx] : currentQ;
   const opts = shuffle([q.correcta, ...q.decoys]);
   answered = false;
+  const contador = modo === 'normal' ? `Pregunta ${idx+1}/${orden.length}` : `Ronda ${idx+1} 🚀`;
   card.innerHTML = `
     <div class="toprow">
-      <span>Pregunta ${idx+1}/${orden.length}</span>
+      <span>${contador}</span>
       <span class="streak">🔥 Racha: ${streak}</span>
       <span>Puntaje: ${score}</span>
     </div>
@@ -156,7 +184,11 @@ function render(){
   card.querySelectorAll('.opt').forEach(btn=>{
     btn.addEventListener('click', () => checkAnswer(btn, q.correcta));
   });
-  document.getElementById('nextBtn').addEventListener('click', ()=>{ idx++; render(); });
+  document.getElementById('nextBtn').addEventListener('click', ()=>{
+    if(modo === 'normal'){ idx++; render(); }
+    else if(gameOver){ render(); }
+    else { idx++; currentQ = generarUnaPregunta(nivel); render(); }
+  });
   startTimer(NIVELES[nivel].tiempo, q.correcta);
 }
 
@@ -196,8 +228,11 @@ function checkAnswer(btn, correcta){
     if(btn) btn.classList.add('wrong');
     fb.textContent = chosen ? `No, esa no lleva tilde. La correcta era "${correcta}"` : `¡Se acabó el tiempo! La correcta era "${correcta}"`;
     fb.className = "feedback bad";
+    if(modo === 'survival') gameOver = true;
   }
-  document.getElementById('nextBtn').style.display = 'inline-block';
+  const nb = document.getElementById('nextBtn');
+  nb.textContent = (modo === 'survival' && gameOver) ? 'Ver resultado →' : 'Siguiente →';
+  nb.style.display = 'inline-block';
 }
 
 function renderFinal(){
@@ -214,7 +249,23 @@ function renderFinal(){
       <button class="restart" id="restart">Jugar de nuevo 🔁</button>
     </div>
   `;
-  document.getElementById('restart').addEventListener('click', ()=>{ nivel=null; render(); });
+  document.getElementById('restart').addEventListener('click', ()=>{ nivel=null; modo=null; render(); });
+}
+
+function renderFinalSurvival(){
+  let msg = "¡Sigue practicando! 💪";
+  if(score >= 15) msg = "¡Eres un crack de las tildes! 🏆";
+  else if(score >= 7) msg = "¡Nada mal! 👏";
+  card.innerHTML = `
+    <div class="final">
+      <h2>Se acabó la racha 💀</h2>
+      <p>Nivel: ${NIVELES[nivel].label}</p>
+      <p>Sobreviviste <b>${score}</b> ronda${score===1?'':'s'} seguidas</p>
+      <p>${msg}</p>
+      <button class="restart" id="restart">Jugar de nuevo 🔁</button>
+    </div>
+  `;
+  document.getElementById('restart').addEventListener('click', ()=>{ nivel=null; modo=null; render(); });
 }
 
 render();
