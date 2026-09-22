@@ -8,55 +8,46 @@
 :root{
   --bg1:#7c3aed; --bg2:#ec4899; --card:#ffffff; --text:#1f1147;
   --correct:#22c55e; --wrong:#ef4444; --accent:#f59e0b;
-  box-sizing:border-box;
-  padding-top:env(safe-area-inset-top,0px);
-  padding-bottom:env(safe-area-inset-bottom,0px);
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box}
 html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
-body{
-  height:100%;margin:0;
-  font-family:'Trebuchet MS',system-ui,sans-serif;
+body{height:100%;margin:0;font-family:'Trebuchet MS',system-ui,sans-serif;
   background:linear-gradient(135deg,var(--bg1),var(--bg2));
-  display:flex;align-items:center;justify-content:center;
-  padding:24px;color:var(--text);
-}
+  display:flex;align-items:center;justify-content:center;padding:24px;color:var(--text);overflow-x:hidden}
 .wrap{width:100%;max-width:480px}
-.card{
-  background:var(--card);border-radius:24px;padding:28px 24px;
-  box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:center;
-}
+.card{background:var(--card);border-radius:24px;padding:28px 24px;box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:center;position:relative;overflow:hidden}
 h1{font-size:1.4rem;margin:0 0 4px;color:#4c1d95}
 .sub{font-size:.85rem;color:#6b7280;margin:0 0 18px}
-.progress{font-weight:bold;color:var(--accent);margin-bottom:6px;font-size:.9rem}
-.score{font-size:.85rem;color:#6b7280;margin-bottom:16px}
-.word{
-  font-size:2.2rem;font-weight:800;margin:10px 0 22px;color:#4c1d95;
-  letter-spacing:.5px;
-}
+.toprow{display:flex;justify-content:space-between;font-size:.85rem;color:#6b7280;margin-bottom:6px;font-weight:bold}
+.streak{color:var(--accent)}
+.timerbar{height:8px;background:#e5e7eb;border-radius:6px;overflow:hidden;margin-bottom:16px}
+.timerfill{height:100%;background:var(--accent);transition:width .1s linear}
 .opts{display:flex;flex-direction:column;gap:12px}
-.opt{
-  font-size:1.15rem;padding:14px;border-radius:14px;border:2px solid #e5e7eb;
-  background:#f9fafb;cursor:pointer;font-weight:600;transition:.15s;
-}
+.opt{font-size:1.15rem;padding:14px;border-radius:14px;border:2px solid #e5e7eb;background:#f9fafb;cursor:pointer;font-weight:600;transition:.15s}
 .opt:hover:not(:disabled){border-color:var(--bg1);transform:translateY(-1px)}
 .opt.correct{background:var(--correct);border-color:var(--correct);color:#fff}
-.opt.wrong{background:var(--wrong);border-color:var(--wrong);color:#fff}
+.opt.wrong{background:var(--wrong);border-color:var(--wrong);color:#fff;animation:shake .3s}
 .opt:disabled{cursor:default}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .feedback{min-height:26px;margin-top:14px;font-weight:bold}
 .feedback.ok{color:var(--correct)}
 .feedback.bad{color:var(--wrong)}
-button.next{
-  margin-top:16px;padding:12px 28px;border:none;border-radius:14px;
-  background:var(--bg1);color:#fff;font-weight:bold;font-size:1rem;cursor:pointer;
-  display:none;
-}
+button.next,button.lvl,button.restart{margin-top:16px;padding:12px 28px;border:none;border-radius:14px;background:var(--bg1);color:#fff;font-weight:bold;font-size:1rem;cursor:pointer}
+button.next{display:none}
+.lvls{display:flex;flex-direction:column;gap:14px;margin-top:20px}
+.lvl{padding:16px;font-size:1.1rem}
+.lvl.facil{background:#22c55e}
+.lvl.medio{background:#f59e0b}
+.lvl.dificil{background:#ef4444}
 .final h2{color:#4c1d95}
 .final p{font-size:1.1rem}
+.confetti{position:fixed;top:-10px;width:10px;height:10px;border-radius:2px;pointer-events:none;animation:fall 1s ease-in forwards;z-index:99}
+@keyframes fall{to{transform:translateY(110vh) rotate(360deg);opacity:0}}
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){--card:#241b3d;--text:#f3f0ff}
   :root:not([data-theme="light"]) .opt{background:#2f2350;border-color:#40315f;color:#f3f0ff}
-  :root:not([data-theme="light"]) .sub,:root:not([data-theme="light"]) .score{color:#c4b8e6}
+  :root:not([data-theme="light"]) .sub,:root:not([data-theme="light"]) .toprow{color:#c4b8e6}
 }
 :root[data-theme="dark"]{--card:#241b3d;--text:#f3f0ff}
 :root[data-theme="dark"] .opt{background:#2f2350;border-color:#40315f;color:#f3f0ff}
@@ -68,45 +59,94 @@ button.next{
 const conTilde = ["café","árbol","fácil","camión","canción","jardín","lápiz","azúcar",
   "corazón","teléfono","música","número","público","rápido","médico","avión","ratón",
   "maíz","país","baúl","raíz","próximo","línea","águila","sábado","autobús","también"];
-const sinTilde = ["fue","vio","dio","fe","vi","triunfo","solo","este","aquel","ese","guion","volumen",
-  "resumen","diario","ruido","viuda","cuota","joven","origen","imagen","margen","crimen","examen","virgen","piano","tierra",
-  "muy","ley","rey","fui","fio"];
+const basic = ["fue","vio","dio","fe","vi","ti","sol","pan","mar","fin","dos","tres","seis",
+  "diez","ver","dar","ir","son","bien","mal","ven","sal","doy","das","hoy","soy","muy","ley","rey","fui"];
+const medioExtra = ["joven","origen","imagen","margen","volumen","crimen","examen","orden",
+  "virgen","resumen","diario","ruido","cuatro","aire","cielo","fuego","huevo","nueve","piano",
+  "triunfo","viuda","cuenta","cuidado","puerta","cuota","tierra","hierba"];
+const dificilExtra = ["solo","este","esta","estos","estas","ese","esa","esos","esas","aquel",
+  "aquella","aquellos","aquellas","pie","lie","guio","hui","fio"];
+const bonusExtra = ["mas","mi","tu","si","el","se","de","te","aun","como","cuando","donde",
+  "cual","quien","que","porque","cautivo","pausa","europeo","recuerdo","juicio","estudio","ruina"];
+
+const NIVELES = {
+  facil:{label:"Fácil 😌", tiempo:12, decoys:[...basic]},
+  medio:{label:"Medio 😐", tiempo:8, decoys:[...basic, ...medioExtra]},
+  dificil:{label:"Difícil 🔥", tiempo:5, decoys:[...basic, ...medioExtra, ...dificilExtra, ...bonusExtra]}
+};
 const NUM_PREGUNTAS = 8;
 
 function shuffle(arr){
   const a=[...arr];
-  for(let i=a.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [a[i],a[j]]=[a[j],a[i]];
-  }
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
   return a;
 }
-function quitarTilde(str){
-  return str.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-}
-function generarPreguntas(){
+function quitarTilde(str){ return str.normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+
+function generarPreguntas(nivelKey){
   const correctas = shuffle(conTilde).slice(0, NUM_PREGUNTAS);
-  const decoyPool = shuffle(sinTilde);
-  return correctas.map((palabra, i) => ({
-    correcta: palabra,
-    decoys: [decoyPool[i*2], decoyPool[i*2+1]]
+  const decoyPool = shuffle(NIVELES[nivelKey].decoys);
+  return correctas.map((palabra,i)=>({correcta:palabra, decoys:[decoyPool[i*2%decoyPool.length], decoyPool[(i*2+1)%decoyPool.length]]}));
+}
+
+let ac;
+function beep(freq, dur, type){
+  try{
+    ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(ac.destination);
+    g.gain.setValueAtTime(0.15, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+    o.start(); o.stop(ac.currentTime + dur);
+  }catch(e){}
+}
+function confetti(){
+  const colors = ['#f59e0b','#ec4899','#7c3aed','#22c55e','#3b82f6'];
+  for(let i=0;i<24;i++){
+    const el = document.createElement('div');
+    el.className = 'confetti';
+    el.style.left = Math.random()*100+'vw';
+    el.style.background = colors[Math.floor(Math.random()*colors.length)];
+    el.style.animationDelay = (Math.random()*0.2)+'s';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 1200);
+  }
+}
+
+let nivel = null, orden = [], idx = 0, score = 0, streak = 0, answered = false, timerInt = null;
+const card = document.getElementById('card');
+
+function renderNiveles(){
+  card.innerHTML = `
+    <h1>¿Cuál lleva tilde? 📝</h1>
+    <p class="sub">Elige tu nivel</p>
+    <div class="lvls">
+      <button class="lvl facil" data-n="facil">Fácil 😌 (12s por pregunta)</button>
+      <button class="lvl medio" data-n="medio">Medio 😐 (8s, palabras más tramposas)</button>
+      <button class="lvl dificil" data-n="dificil">Difícil 🔥 (5s, las más difíciles)</button>
+    </div>
+  `;
+  card.querySelectorAll('.lvl').forEach(b=>b.addEventListener('click', ()=>{
+    nivel = b.dataset.n; idx=0; score=0; streak=0;
+    orden = generarPreguntas(nivel); render();
   }));
 }
 
-let orden = generarPreguntas();
-let idx = 0, score = 0, answered = false;
-const card = document.getElementById('card');
-
 function render(){
+  if(nivel === null){ renderNiveles(); return; }
   if(idx >= orden.length){ renderFinal(); return; }
   const q = orden[idx];
   const opts = shuffle([q.correcta, ...q.decoys]);
   answered = false;
   card.innerHTML = `
-    <h1>¿Cuál lleva tilde? 📝</h1>
+    <div class="toprow">
+      <span>Pregunta ${idx+1}/${orden.length}</span>
+      <span class="streak">🔥 Racha: ${streak}</span>
+      <span>Puntaje: ${score}</span>
+    </div>
+    <div class="timerbar"><div class="timerfill" id="timerfill" style="width:100%"></div></div>
     <p class="sub">Elige la palabra que sí lleva tilde</p>
-    <div class="progress">Pregunta ${idx+1} de ${orden.length}</div>
-    <div class="score">Puntaje: ${score}</div>
     <div class="opts">
       ${opts.map(w=>`<button class="opt" data-w="${w}">${quitarTilde(w)}</button>`).join('')}
     </div>
@@ -117,25 +157,44 @@ function render(){
     btn.addEventListener('click', () => checkAnswer(btn, q.correcta));
   });
   document.getElementById('nextBtn').addEventListener('click', ()=>{ idx++; render(); });
+  startTimer(NIVELES[nivel].tiempo, q.correcta);
+}
+
+function startTimer(segundos, correcta){
+  let restante = segundos;
+  const fill = document.getElementById('timerfill');
+  clearInterval(timerInt);
+  timerInt = setInterval(()=>{
+    restante -= 0.1;
+    fill.style.width = Math.max(0,(restante/segundos)*100)+'%';
+    if(restante <= 0){
+      clearInterval(timerInt);
+      if(!answered) checkAnswer(null, correcta);
+    }
+  }, 100);
 }
 
 function checkAnswer(btn, correcta){
   if(answered) return;
   answered = true;
-  const chosen = btn.dataset.w;
+  clearInterval(timerInt);
+  const chosen = btn ? btn.dataset.w : null;
   const fb = document.getElementById('fb');
   card.querySelectorAll('.opt').forEach(b=>{
     b.disabled = true;
-    if(b.dataset.w === correcta) b.textContent = correcta;
     if(b.dataset.w === correcta) b.classList.add('correct');
   });
   if(chosen === correcta){
-    score++;
+    score++; streak++;
+    beep(880, 0.15, 'sine');
+    confetti();
     fb.textContent = `¡Sí, lleva tilde! Se escribe "${correcta}" 🎉`;
     fb.className = "feedback ok";
   } else {
-    btn.classList.add('wrong');
-    fb.textContent = `No, esa no lleva tilde. La correcta era "${correcta}"`;
+    streak = 0;
+    beep(140, 0.25, 'sawtooth');
+    if(btn) btn.classList.add('wrong');
+    fb.textContent = chosen ? `No, esa no lleva tilde. La correcta era "${correcta}"` : `¡Se acabó el tiempo! La correcta era "${correcta}"`;
     fb.className = "feedback bad";
   }
   document.getElementById('nextBtn').style.display = 'inline-block';
@@ -149,14 +208,13 @@ function renderFinal(){
   card.innerHTML = `
     <div class="final">
       <h2>Resultado final</h2>
+      <p>Nivel: ${NIVELES[nivel].label}</p>
       <p>Acertaste <b>${score}</b> de <b>${orden.length}</b> (${pct}%)</p>
       <p>${msg}</p>
-      <button class="next" style="display:inline-block" id="restart">Jugar de nuevo 🔁</button>
+      <button class="restart" id="restart">Jugar de nuevo 🔁</button>
     </div>
   `;
-  document.getElementById('restart').addEventListener('click', ()=>{
-    idx=0; score=0; orden = generarPreguntas(); render();
-  });
+  document.getElementById('restart').addEventListener('click', ()=>{ nivel=null; render(); });
 }
 
 render();
