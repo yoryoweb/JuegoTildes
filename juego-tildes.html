@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>¿Cuál lleva tilde?</title>
+<style>
+:root{
+  --bg1:#7c3aed; --bg2:#ec4899; --card:#ffffff; --text:#1f1147;
+  --correct:#22c55e; --wrong:#ef4444; --accent:#f59e0b;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  height:100%;margin:0;
+  font-family:'Trebuchet MS',system-ui,sans-serif;
+  background:linear-gradient(135deg,var(--bg1),var(--bg2));
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;color:var(--text);
+}
+.wrap{width:100%;max-width:480px}
+.card{
+  background:var(--card);border-radius:24px;padding:28px 24px;
+  box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:center;
+}
+h1{font-size:1.4rem;margin:0 0 4px;color:#4c1d95}
+.sub{font-size:.85rem;color:#6b7280;margin:0 0 18px}
+.progress{font-weight:bold;color:var(--accent);margin-bottom:6px;font-size:.9rem}
+.score{font-size:.85rem;color:#6b7280;margin-bottom:16px}
+.word{
+  font-size:2.2rem;font-weight:800;margin:10px 0 22px;color:#4c1d95;
+  letter-spacing:.5px;
+}
+.opts{display:flex;flex-direction:column;gap:12px}
+.opt{
+  font-size:1.15rem;padding:14px;border-radius:14px;border:2px solid #e5e7eb;
+  background:#f9fafb;cursor:pointer;font-weight:600;transition:.15s;
+}
+.opt:hover:not(:disabled){border-color:var(--bg1);transform:translateY(-1px)}
+.opt.correct{background:var(--correct);border-color:var(--correct);color:#fff}
+.opt.wrong{background:var(--wrong);border-color:var(--wrong);color:#fff}
+.opt:disabled{cursor:default}
+.feedback{min-height:26px;margin-top:14px;font-weight:bold}
+.feedback.ok{color:var(--correct)}
+.feedback.bad{color:var(--wrong)}
+button.next{
+  margin-top:16px;padding:12px 28px;border:none;border-radius:14px;
+  background:var(--bg1);color:#fff;font-weight:bold;font-size:1rem;cursor:pointer;
+  display:none;
+}
+.final h2{color:#4c1d95}
+.final p{font-size:1.1rem}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--card:#241b3d;--text:#f3f0ff}
+  :root:not([data-theme="light"]) .opt{background:#2f2350;border-color:#40315f;color:#f3f0ff}
+  :root:not([data-theme="light"]) .sub,:root:not([data-theme="light"]) .score{color:#c4b8e6}
+}
+:root[data-theme="dark"]{--card:#241b3d;--text:#f3f0ff}
+:root[data-theme="dark"] .opt{background:#2f2350;border-color:#40315f;color:#f3f0ff}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card" id="card"></div></div>
+<script>
+const conTilde = ["café","árbol","fácil","camión","canción","jardín","lápiz","azúcar",
+  "corazón","teléfono","música","número","público","rápido","médico","avión","ratón",
+  "maíz","país","baúl","raíz","próximo","línea","águila","sábado","autobús","también"];
+const sinTilde = ["fue","vio","dio","fe","vi","ti","sol","pan","mar","fin","dos","tres",
+  "seis","diez","ver","dar","ir","son","bien","mal","ven","sal","doy","das","hoy","soy",
+  "muy","ley","rey","fui","fio"];
+const NUM_PREGUNTAS = 8;
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function quitarTilde(str){
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function generarPreguntas(){
+  const correctas = shuffle(conTilde).slice(0, NUM_PREGUNTAS);
+  const decoyPool = shuffle(sinTilde);
+  return correctas.map((palabra, i) => ({
+    correcta: palabra,
+    decoys: [decoyPool[i*2], decoyPool[i*2+1]]
+  }));
+}
+
+let orden = generarPreguntas();
+let idx = 0, score = 0, answered = false;
+const card = document.getElementById('card');
+
+function render(){
+  if(idx >= orden.length){ renderFinal(); return; }
+  const q = orden[idx];
+  const opts = shuffle([q.correcta, ...q.decoys]);
+  answered = false;
+  card.innerHTML = `
+    <h1>¿Cuál lleva tilde? 📝</h1>
+    <p class="sub">Elige la palabra que sí lleva tilde</p>
+    <div class="progress">Pregunta ${idx+1} de ${orden.length}</div>
+    <div class="score">Puntaje: ${score}</div>
+    <div class="opts">
+      ${opts.map(w=>`<button class="opt" data-w="${w}">${quitarTilde(w)}</button>`).join('')}
+    </div>
+    <div class="feedback" id="fb"></div>
+    <button class="next" id="nextBtn">Siguiente →</button>
+  `;
+  card.querySelectorAll('.opt').forEach(btn=>{
+    btn.addEventListener('click', () => checkAnswer(btn, q.correcta));
+  });
+  document.getElementById('nextBtn').addEventListener('click', ()=>{ idx++; render(); });
+}
+
+function checkAnswer(btn, correcta){
+  if(answered) return;
+  answered = true;
+  const chosen = btn.dataset.w;
+  const fb = document.getElementById('fb');
+  card.querySelectorAll('.opt').forEach(b=>{
+    b.disabled = true;
+    if(b.dataset.w === correcta) b.textContent = correcta;
+    if(b.dataset.w === correcta) b.classList.add('correct');
+  });
+  if(chosen === correcta){
+    score++;
+    fb.textContent = `¡Sí, lleva tilde! Se escribe "${correcta}" 🎉`;
+    fb.className = "feedback ok";
+  } else {
+    btn.classList.add('wrong');
+    fb.textContent = `No, esa no lleva tilde. La correcta era "${correcta}"`;
+    fb.className = "feedback bad";
+  }
+  document.getElementById('nextBtn').style.display = 'inline-block';
+}
+
+function renderFinal(){
+  const pct = Math.round((score/orden.length)*100);
+  let msg = "¡Sigue practicando! 💪";
+  if(pct >= 90) msg = "¡Eres un crack de las tildes! 🏆";
+  else if(pct >= 60) msg = "¡Nada mal! 👏";
+  card.innerHTML = `
+    <div class="final">
+      <h2>Resultado final</h2>
+      <p>Acertaste <b>${score}</b> de <b>${orden.length}</b> (${pct}%)</p>
+      <p>${msg}</p>
+      <button class="next" style="display:inline-block" id="restart">Jugar de nuevo 🔁</button>
+    </div>
+  `;
+  document.getElementById('restart').addEventListener('click', ()=>{
+    idx=0; score=0; orden = generarPreguntas(); render();
+  });
+}
+
+render();
+</script>
+</body>
+</html>
